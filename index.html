@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Решение систем уравнений</title>
+    </head>
+
+    <body>
+        <div class="equation-rules">
+            <h2>Правила ввода уравнений</h2>
+            <ol>
+                <li>Все переменные должны быть записаны в левой части.</li>
+                <li>Переменные сортируются по алфавиту и индексам.</li>
+                <li>Примеры уравнений: "x+2*y+5z=6", "4*x2 + 5x1 + x3 = 6"(после переменных находятся индексы)</li>
+            </ol>
+        </div>
+        <form id="equationForm">
+            <button type="button" onclick="addEquation()">Добавить уравнение</button>
+            <button type="button" onclick="solveEquations()">Решить</button>
+            <br/>
+            <label for="equations">Введите систему уравнений:</label>
+            <div id="equations">
+              <div class="equation">
+                <input type="text" name="equation[]" placeholder="Уравнение" style="width: 30%;">
+                <button type="button" onclick="removeEquation(this)">Удалить</button>
+              </div>
+            </div>
+        </form>
+        <br/>
+        <div id="output"></div>
+    </body>
+      
+    <script>
+        function addEquation() {
+          const equationsDiv = document.getElementById('equations');
+          const newEquation = document.createElement('div');
+          newEquation.className = 'equation';
+          newEquation.innerHTML = '<input type="text" name="equation[]" placeholder="Уравнение" style="width: 30%;"> <button type="button" onclick="removeEquation(this)">Удалить</button>';
+          equationsDiv.appendChild(newEquation);
+        }
+
+        function removeEquation(button) {
+            const equationDiv = button.parentElement;
+            equationDiv.remove();
+        }
+
+        function collectEquations() {
+            const equations = [];
+            const inputs = document.querySelectorAll('input[name="equation[]"]');
+            inputs.forEach(input => {
+                if (input.value.trim() !== '') {
+                    equations.push(input.value.replaceAll(' ', '').replaceAll('*', ''));
+                }
+            });
+            console.log(equations);
+
+            return equations; // Возвращаем false, чтобы предотвратить отправку формы
+        }
+
+        function parseEquations(equations) {
+            const variableSet = new Set();
+            const coefficients = [];
+
+            // Разбиваем каждое уравнение
+            for (let eq of equations) {
+                const parts = eq.split('=');
+                const leftSide = parts[0].trim();
+                const rightSide = parts[1].trim();
+
+                // Получаем свободный член (правую часть)
+                let freeTerm = eval(rightSide); // Оценка выражения, содержащего числа и оператор +
+                const row = {}; // Объект для коэффициентов переменных в данном уравнении
+
+                // Парсим левую часть (коэффициенты переменных)
+                const terms = leftSide.match(/([+-]?\d*\.*\d*)?\s*([a-zA-Z_]\w*)/g);
+                for (let term of terms) {
+                    const match = term.match(/([+-]?\d*\.*\d*)?\s*([a-zA-Z_]\w*)/);
+                    console.log(match);
+                    if (!match[1]) match[1] = 1; // Если коэффициент не указан, подразумеваем 1
+                    if (match[1] == '+' || match[1] == '-') match[1] += 1
+
+                    const coeff = parseFloat(match[1]);
+                    const variable = match[2];
+
+                    // Убираем автоматическую обработку знака
+                    row[variable] = coeff;
+                    variableSet.add(variable);
+                }
+
+                coefficients.push({ left: row, right: freeTerm });
+            }
+
+            let variables = customSort(Array.from(variableSet));
+            return { coefficients, variables: variables};
+        }
+
+        function customSort(variables) {
+            variables.sort((a, b) => {
+                // Разделяем буквы и числа
+                const [varA, numA] = a.match(/([a-zA-Z]+)(\d*)/).slice(1);
+                const [varB, numB] = b.match(/([a-zA-Z]+)(\d*)/).slice(1);
+
+                // Сравниваем буквы
+                if (varA === varB) {
+                    // Если буквы одинаковые, сравниваем числовые суффиксы
+                    return (numA ? parseInt(numA) : 0) - (numB ? parseInt(numB) : 0);
+                }
+                return varA.localeCompare(varB);
+            });
+    
+            return variables;
+        }
+
+        function buildMainMatrix(data) {
+            let matrix = [];
+            for (let r = 0; r < data.coefficients.length; r++) {
+                let row = [];
+                for (let i = 0; i < data.variables.length; i++) {
+                    let coeff = data.coefficients[r].left[data.variables[i]];
+                    if (!coeff) coeff = 0;
+                    row.push(coeff);
+                }
+
+                matrix.push(row);
+            }
+
+            return matrix;
+        }
+
+        function buildMainMatrix(data) {
+            let matrix = [];
+            for (let r = 0; r < data.coefficients.length; r++) {
+                let row = [];
+                for (let i = 0; i < data.variables.length; i++) {
+                    let coeff = data.coefficients[r].left[data.variables[i]];
+                    if (!coeff) coeff = 0;
+                    row.push(coeff);
+                }
+
+                matrix.push(row);
+            }
+
+            return matrix;
+        }
+
+        function buildMatrix(data, col) {
+            let matrix = [];
+            for (let r = 0; r < data.coefficients.length; r++) {
+                let row = [];
+                for (let i = 0; i < data.variables.length; i++) {
+                    if (i === col) {
+                        let freeTerm = data.coefficients[r].right;
+                        row.push(freeTerm);
+                    } else {
+                        let coeff = data.coefficients[r].left[data.variables[i]];
+                        if (!coeff) coeff = 0;
+
+                        row.push(coeff);
+                    }
+                }
+
+                matrix.push(row);
+            }
+
+            return matrix;
+        }
+
+        function solve(data) {
+            let matrix = buildMainMatrix(data)
+            const mainDet = calculateDeterminant(matrix);
+            if (mainDet === 0) {
+                return null; // Система имеет бесконечно много решений или нет решений
+            }
+
+            const solutions = {};
+            const steps1 = [{name: `Определитель D =`, matrix, text: `= ${mainDet}`}];
+            const steps2 = [`Определитель D = ${mainDet}`];
+
+            for (let i = 0; i < data.variables.length; i++) {
+                matrix = buildMatrix(data, i)
+                const detX = calculateDeterminant(matrix);
+                const value = detX / mainDet;
+                solutions[data.variables[i]] = value;
+                steps1.push({name: `Определитель D_${data.variables[i]} =`, matrix, text: `= ${detX}`});
+                steps2.push(`${data.variables[i]} = D_${data.variables[i]} / D = ${value}`);
+            }
+
+            return { solutions, steps1, steps2 };
+        }
+
+        function calculateDeterminant(matrix) {
+            const size = matrix.length;
+            
+            if (size === 2) {
+                return (matrix[0][0] * matrix[1][1]) - (matrix[0][1] * matrix[1][0]);
+            }
+
+            let det = 0;
+            for (let i = 0; i < size; i++) {
+                const subMatrix = matrix.slice(1).map(row => row.filter((_, j) => j !== i));
+                det += (matrix[0][i] * calculateDeterminant(subMatrix)) * (i % 2 === 0 ? 1 : -1);
+            }
+            
+            console.log(det);
+            return det;
+        }
+
+        function displayOutput(solution) {
+            const outputDiv = document.getElementById('output');
+            if (!solution) {
+                outputDiv.innerHTML = "Система уравнений не имеет единственного решения.";
+                return;
+            }
+
+            for (let i = 0; i < solution.steps1.length; i++) {
+                outputDiv.innerHTML += solution.steps1[i].name;
+                outputDiv.innerHTML += drawMatrix(solution.steps1[i].matrix);
+                outputDiv.innerHTML += solution.steps1[i].text + '<br>';
+
+                outputDiv.innerHTML += solution.steps2[i] + '<br><br>';
+            }
+
+            outputDiv.innerHTML += '<br>Решение: ' +
+            Object.entries(solution.solutions)
+            .map(([varName, value]) => `${varName} = ${value}`)
+            .join(', ');
+        }
+
+        function drawMatrix(matrix) {
+            let matrixHTML = '<div class="matrix">';
+
+            matrix.forEach((row) => {
+                matrixHTML += '<div class="row">';
+
+                row.forEach((value) => {
+                matrixHTML += `<div class="cell">${value}</div>`;
+                });
+
+                matrixHTML += '</div>';
+            });
+
+            matrixHTML += '</div>';
+            return matrixHTML;
+        }
+
+        function solveEquations() {
+            const equations = collectEquations();
+            const result = parseEquations(equations);
+            const solution = solve(result);
+            displayOutput(solution);
+        }
+    </script>
+
+    <style>
+        .matrix {
+            display: inline-block;
+            margin: 20px;
+            border: 1px solid #000;
+            padding: 10px;
+        }
+        .row {
+            display: flex;
+        }
+        .cell {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+        }
+    </style>
+</html>
