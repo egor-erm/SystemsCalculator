@@ -173,7 +173,7 @@
         function solve(data) {
             let matrix = buildMainMatrix(data)
             const mainDet = calculateDeterminant(matrix);
-            if (mainDet === 0) {
+            if (mainDet === 0 || data.coefficients.length != data.variables.length) {
                 return null; // Система имеет бесконечно много решений или нет решений
             }
 
@@ -212,6 +212,7 @@
 
         function displayOutput(solution) {
             const outputDiv = document.getElementById('output');
+            outputDiv.innerHTML = '';
             if (!solution) {
                 outputDiv.innerHTML = "Система уравнений не имеет единственного решения.";
                 return;
